@@ -25,6 +25,7 @@ var (
 	doWhite bool
 	doPng   bool
 	size    int
+	outDir  string
 )
 
 func main() {
@@ -32,7 +33,15 @@ func main() {
 	flag.BoolVar(&doWhite, "white", false, "make PNG background white instead of clear")
 	flag.BoolVar(&doPng, "png", false, "output png format instead of jpg")
 	flag.IntVar(&size, "size", 128, "length of one side of the square thumbnail")
+	flag.StringVar(&outDir, "dir", "", "output directory")
 	flag.Parse()
+
+	if outDir != "" {
+		err := os.MkdirAll(outDir, 0777)
+		if err != nil {
+			log.Fatal(outDir, err)
+		}
+	}
 
 	wg := &sync.WaitGroup{}
 	jobChan := make(chan string)
@@ -62,14 +71,14 @@ func main() {
 func makeThumb(fname string) {
 	file, err := os.Open(fname)
 	if err != nil {
-		log.Println(err)
+		log.Println(filepath.Base(fname), err)
 		return
 	}
 	defer file.Close()
 
 	original, _, err := image.Decode(file)
 	if err != nil {
-		log.Println(err)
+		log.Println(filepath.Base(fname), err)
 		return
 	}
 
@@ -98,12 +107,17 @@ func makeThumb(fname string) {
 	} else {
 		outFileName += ".jpg"
 	}
+	if outDir != "" {
+		outFileName = filepath.Join(outDir, filepath.Base(outFileName))
+	}
+
 	outFile, err := os.Create(outFileName)
 	if err != nil {
-		log.Println(err)
+		log.Println(filepath.Base(fname), err)
 		return
 	}
 	defer outFile.Close()
+
 	if doPng {
 		png.Encode(outFile, thumb)
 	} else {
